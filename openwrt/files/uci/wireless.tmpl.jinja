@@ -1,0 +1,48 @@
+########################################################################
+# File managed by Salt at <{{ source }}>.
+# Your changes will be overwritten.
+########################################################################
+
+{# uci.jinja included as workaround for bug in salt-ssh #}
+{%- macro uci_config(type, name, options) %}
+config {{ type }} '{{ name }}'
+	{%- for option, value in options.items() %}
+		{%- if value is list %}
+			{%- for value_it in value %}
+	list {{ option }} '{{ value_it }}'
+			{%- endfor %}
+		{%- else %}
+	option {{ option }} '{{ value }}'
+		{%- endif %}
+	{%- endfor %}
+{%- endmacro %}
+
+{%- macro uci_extra(config, name='extra') %}
+{%- for section in config.get(name, []) %}
+{{ uci_config(section.type, section.name, section.options )}}
+{%- endfor %}
+{%- endmacro %}
+{# uci.jinja end #}
+
+
+{%- set devices = openwrt.config.wireless.devices %}
+{%- set networks = openwrt.config.wireless.networks %}
+{%- set wireless_defaults = openwrt.config.wireless.network_defaults %}
+
+{%- for name, options in devices.items() %}
+{{ uci_config('wifi-device', name, options) }}
+{%- endfor %}
+
+{%- for ssid, options in networks.items() %}
+	{%- set options_defaults = wireless_defaults.copy() %}
+	{%- do options_defaults.update(options) %}
+	{%- set options = options_defaults %}
+	{%- do options.update({'ssid': ssid}) %}
+	{%- set devices = options.pop('devices') %}
+	{%- for device in devices %}
+		{%- do options.update({'device': device}) %}
+{{ uci_config('wifi-iface', device ~ '_' ~ ssid|replace(".","_")|replace("-","_"), options) }}
+	{%- endfor %}
+{%- endfor %}
+
+{{- uci_extra(openwrt.config.wireless) }}

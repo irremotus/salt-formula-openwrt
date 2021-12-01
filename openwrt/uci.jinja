@@ -1,0 +1,18 @@
+{%- macro uci_config(type, name, options) %}
+config {{ type }} '{{ name }}'
+	{%- for option, value in options.items() %}
+		{%- if value is list %}
+			{%- for value_it in value %}
+	list {{ option }} '{{ value_it }}'
+			{%- endfor %}
+		{%- else %}
+	option {{ option }} '{{ value }}'
+		{%- endif %}
+	{%- endfor %}
+{%- endmacro %}
+
+{%- macro uci_extra(config, name='extra') %}
+{%- for section in config.get(name, []) %}
+{{ uci_config(section.type, section.name, section.options )}}
+{%- endfor %}
+{%- endmacro %}

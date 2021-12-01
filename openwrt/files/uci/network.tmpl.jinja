@@ -1,0 +1,43 @@
+########################################################################
+# File managed by Salt at <{{ source }}>.
+# Your changes will be overwritten.
+########################################################################
+
+{# uci.jinja included as workaround for bug in salt-ssh #}
+{%- macro uci_config(type, name, options) %}
+config {{ type }}{% if name %} '{{ name }}'{% endif %}
+	{%- for option, value in options.items() %}
+		{%- if value is list %}
+			{%- for value_it in value %}
+	list {{ option }} '{{ value_it }}'
+			{%- endfor %}
+		{%- else %}
+	option {{ option }} '{{ value }}'
+		{%- endif %}
+	{%- endfor %}
+{%- endmacro %}
+
+{%- macro uci_extra(config, name='extra') %}
+{%- for section in config.get(name, []) %}
+{{ uci_config(section.type, section.name, section.options )}}
+{%- endfor %}
+{%- endmacro %}
+{# uci.jinja end #}
+
+
+{%- set devices = openwrt.config.network.devices %}
+{%- set interfaces = openwrt.config.network.interfaces %}
+{%- set globals = openwrt.config.network.globals %}
+
+{{ uci_config('globals', 'globals', globals) }}
+
+{%- for name, options in devices.items() %}
+{%- do options.update({'name': name}) %}
+{{ uci_config('device', '', options) }}
+{%- endfor %}
+
+{%- for name, options in interfaces.items() %}
+{{ uci_config('interface', name, options) }}
+{%- endfor %}
+
+{{- uci_extra(openwrt.config.network) }}
